@@ -22,14 +22,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://amazing-outfits.onrender.com',
-    'https://amazing-outfits.vercel.app',
-    'https://amazing-outfits.netlify.app',
-    'https://citations-silk-arrested-base.trycloudflare.com'
-  ],
+  origin: true, // Allow all origins for testing; restrict later in production
   credentials: true
 }));
 app.use(express.json());
