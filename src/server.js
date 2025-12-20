@@ -27,7 +27,8 @@ app.use(cors({
     'http://localhost:5173',
     'https://amazing-outfits.onrender.com',
     'https://amazing-outfits.vercel.app',
-    'https://amazing-outfits.netlify.app'
+    'https://amazing-outfits.netlify.app',
+    'https://citations-silk-arrested-base.trycloudflare.com'
   ],
   credentials: true
 }));

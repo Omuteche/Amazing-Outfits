@@ -113,6 +113,9 @@ A Node.js + Express + MongoDB backend for the e-commerce application.
 | `PORT` | Server port (default: 5000) |
 | `PAYSTACK_SECRET_KEY` | Paystack secret key |
 | `PAYSTACK_PUBLIC_KEY` | Paystack public key |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 | `UPLOAD_PATH` | File upload directory |
 | `MAX_FILE_SIZE` | Max upload size in bytes |
 
