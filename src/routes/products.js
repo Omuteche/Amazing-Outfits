@@ -1,6 +1,7 @@
 const express = require('express');
 const slugify = require('slugify');
 const Product = require('../models/Product');
+const Brand = require('../models/Brand');
 const { auth, adminAuth, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -24,8 +25,14 @@ router.get('/', async (req, res) => {
 
     const query = {};
 
-    if (category) query.category = category;
-    if (brand) query.brand = brand;
+    if (category) {
+      const categoryDoc = await Category.findOne({ slug: category });
+      if (categoryDoc) query.category = categoryDoc._id;
+    }
+    if (brand) {
+      const brandDoc = await Brand.findOne({ slug: brand });
+      if (brandDoc) query.brand = brandDoc._id;
+    }
     if (isFeatured === 'true') query.isFeatured = true;
     if (isNewArrival === 'true') query.isNewArrival = true;
     if (isOnSale === 'true') query.isOnSale = true;

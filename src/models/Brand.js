@@ -13,6 +13,10 @@ const brandSchema = new mongoose.Schema({
   },
   logoUrl: {
     type: String
+  },
+  description: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true
