@@ -1,7 +1,9 @@
 const express = require('express');
 const crypto = require('crypto');
 const Order = require('../models/Order');
+const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { sendOrderConfirmationEmail } = require('../utils/email');
 
 const router = express.Router();
 
@@ -104,13 +106,24 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
     if (event.event === 'charge.success') {
       const { reference, metadata } = event.data;
-      
+
       if (metadata?.orderId) {
-        await Order.findByIdAndUpdate(metadata.orderId, {
+        const order = await Order.findByIdAndUpdate(metadata.orderId, {
           paymentStatus: 'paid',
           paymentReference: reference,
           status: 'confirmed'
-        });
+        }, { new: true }).populate('items.product');
+
+        if (order && metadata?.userId) {
+          const user = await User.findById(metadata.userId);
+          if (user) {
+            try {
+              await sendOrderConfirmationEmail(order, user);
+            } catch (emailError) {
+              console.error('Failed to send order confirmation email:', emailError);
+            }
+          }
+        }
       }
     }
 

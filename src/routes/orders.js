@@ -1,48 +1,95 @@
 const express = require('express');
 const Order = require('../models/Order');
+const User = require('../models/User');
 const { auth, adminAuth } = require('../middleware/auth');
+const { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } = require('../utils/email');
 
 const router = express.Router();
 
+// Create order
+router.post('/', auth, async (req, res) => {
+  try {
+    const { items, shippingAddress, paymentMethod, notes } = req.body;
+
+    // Validate required fields
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Order must contain at least one item' });
+    }
+
+    if (!shippingAddress) {
+      return res.status(400).json({ error: 'Shipping address is required' });
+    }
+
+    // Validate items
+    for (const item of items) {
+      if (!item.product || !item.quantity || !item.price) {
+        return res.status(400).json({ error: 'Invalid item data' });
+      }
+    }
+
+    // Calculate totals
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const shippingFee = 0; // Free shipping for now
+    const total = subtotal + shippingFee;
+
+    const order = new Order({
+      user: req.user._id,
+      items,
+      shippingAddress,
+      subtotal,
+      shippingFee,
+      total,
+      paymentMethod,
+      notes
+    });
+
+    await order.save();
+    await order.populate('items.product');
+
+    res.status(201).json(order);
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'Failed to create order' });
+  }
+});
+
 // Get user's orders
-router.get('/my-orders', auth, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
+      .populate('items.product')
       .sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// Get user's orders (alias for /)
+router.get('/my-orders', auth, async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id })
+      .populate('items.product')
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
 
 // Get all orders (admin only)
-router.get('/', adminAuth, async (req, res) => {
+router.get('/all', adminAuth, async (req, res) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
-    const query = status ? { status } : {};
-    
-    const skip = (Number(page) - 1) * Number(limit);
-    
-    const [orders, total] = await Promise.all([
-      Order.find(query)
-        .populate('user', 'fullName email')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
-      Order.countDocuments(query)
-    ]);
-
-    res.json({
-      orders,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit))
-      }
-    });
+    const orders = await Order.find()
+      .populate('user', 'fullName email')
+      .populate('items.product')
+      .sort({ createdAt: -1 });
+    res.json(orders);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching all orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
 
@@ -50,8 +97,9 @@ router.get('/', adminAuth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('user', 'fullName email');
-    
+      .populate('user', 'fullName email')
+      .populate('items.product');
+
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
@@ -63,21 +111,8 @@ router.get('/:id', auth, async (req, res) => {
 
     res.json(order);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Create order
-router.post('/', auth, async (req, res) => {
-  try {
-    const order = new Order({
-      ...req.body,
-      user: req.user._id
-    });
-    await order.save();
-    res.status(201).json(order);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Error fetching order:', error);
+    res.status(500).json({ error: 'Failed to fetch order' });
   }
 });
 
@@ -85,37 +120,39 @@ router.post('/', auth, async (req, res) => {
 router.patch('/:id/status', adminAuth, async (req, res) => {
   try {
     const { status } = req.body;
+
+    if (!['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true }
-    );
-    
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-    res.json(order);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+    ).populate('items.product');
 
-// Update payment status
-router.patch('/:id/payment', async (req, res) => {
-  try {
-    const { paymentStatus, paymentReference } = req.body;
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { paymentStatus, paymentReference },
-      { new: true }
-    );
-    
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
+
+    // Send status update email to customer
+    try {
+      const user = await User.findById(order.user);
+      if (user) {
+        await sendOrderStatusUpdateEmail(order, user);
+        console.log(`Status update email sent for order ${order._id} to ${user.email}`);
+      } else {
+        console.error('User not found for order:', order._id);
+      }
+    } catch (emailError) {
+      console.error('Error sending status update email:', emailError);
+      // Don't fail the request if email fails, just log it
+    }
+
     res.json(order);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Error updating order status:', error);
+    res.status(500).json({ error: 'Failed to update order status' });
   }
 });
 

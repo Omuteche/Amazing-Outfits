@@ -20,21 +20,9 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
-// CORS configuration for production safety
-// Parse CLIENT_URL as comma-separated list of allowed origins
-const allowedOrigins = process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',').map(url => url.trim()) : [];
-
+// CORS configuration temporarily opened for testing
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, Postman, curl)
-    if (!origin) return callback(null, true);
-    // Allow requests from allowed origins
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    // Reject other origins
-    return callback(new Error('Not allowed by CORS'));
-  },
+  origin: true, // Allow all origins for testing
   credentials: true, // Allow credentials (cookies, authorization headers)
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
