@@ -28,7 +28,7 @@ router.post('/initialize', auth, async (req, res) => {
         email,
         amount: Math.round(amount * 100), // Convert to kobo
         reference: `order_${orderId}_${Date.now()}`,
-        callback_url: `${req.headers.origin}/payment/callback`,
+        callback_url: 'https://amazingoutfits.shop/payment-success',
         metadata: {
           orderId,
           userId: req.user._id.toString()
@@ -49,8 +49,9 @@ router.post('/initialize', auth, async (req, res) => {
   }
 });
 
-// Verify payment
-router.get('/verify/:reference', auth, async (req, res) => {
+// Verify payment - PUBLIC endpoint for frontend callbacks
+router.get('/verify/:reference', async (req, res) => {
+  console.log(`Paystack verify called for reference: ${req.params.reference}`);
   try {
     const response = await fetch(`https://api.paystack.co/transaction/verify/${req.params.reference}`, {
       headers: {
@@ -61,7 +62,11 @@ router.get('/verify/:reference', auth, async (req, res) => {
     const data = await response.json();
 
     if (!data.status) {
-      return res.status(400).json({ error: data.message || 'Verification failed' });
+      console.log(`Paystack verify failed for ${req.params.reference}:`, data.message);
+      return res.status(400).json({ 
+        success: false, 
+        message: data.message || 'Verification failed' 
+      });
     }
 
     const { metadata, status } = data.data;
@@ -76,8 +81,11 @@ router.get('/verify/:reference', auth, async (req, res) => {
       orderNumber = order?.orderNumber;
     }
 
+    console.log(`Paystack verify success for ${req.params.reference}, order: ${orderNumber}`);
+    
     res.json({
-      ...data.data,
+      success: true,
+      data: data.data,
       orderNumber
     });
   } catch (error) {

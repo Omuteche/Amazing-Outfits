@@ -7,7 +7,25 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://amazingoutfits.shop',
+    'https://www.amazingoutfits.shop', 
+    'https://amazing-outfits-frontend.vercel.app',
+    'https://api.paystack.co'
+  ],
+  credentials: true
+}));
+
+// Log requests for debugging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  if (req.path.includes('paystack')) {
+    console.log('Paystack request:', req.path, req.query.reference || req.body);
+  }
+  next();
+});
+
 app.use(express.json());
 
 // Connect to MongoDB
