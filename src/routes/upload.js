@@ -1,7 +1,11 @@
 const express = require('express');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
+const path = require('path');
+const fs = require('fs');
 const { auth, adminAuth } = require('../middleware/auth');
+
+const uploadDir = path.join(__dirname, '../../uploads');
 
 const router = express.Router();
 
@@ -67,7 +71,9 @@ router.post('/single', auth, upload.single('file'), async (req, res) => {
         {
           folder: `amazing-outfits/${folder}`,
           public_id: `${Date.now()}-${Math.random().toString(36).substring(2)}`,
-          resource_type: 'auto'
+          resource_type: 'auto',
+          quality: 'auto',
+          fetch_format: 'auto'
         },
         (error, result) => {
           if (error) reject(error);
@@ -97,13 +103,15 @@ router.post('/multiple', auth, upload.array('files', 10), async (req, res) => {
     }
 
     const folder = req.body.folder || 'general';
-    const uploadPromises = req.files.map(file => {
+    const uploadPromises = req.files.map((file) => {
       return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             folder: `amazing-outfits/${folder}`,
             public_id: `${Date.now()}-${Math.random().toString(36).substring(2)}`,
-            resource_type: 'auto'
+            resource_type: 'auto',
+            quality: 'auto',
+            fetch_format: 'auto'
           },
           (error, result) => {
             if (error) reject(error);

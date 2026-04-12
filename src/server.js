@@ -9,6 +9,8 @@ const app = express();
 
 app.use(cors({
   origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     'https://amazingoutfits.shop',
     'https://www.amazingoutfits.shop', 
     'https://amazing-outfits-frontend.vercel.app',
@@ -30,10 +32,7 @@ app.use(express.json());
 
 // Connect to MongoDB
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/amazingoutfits';
-mongoose.connect(mongoUri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(mongoUri)
 .then(() => console.log('MongoDB connected'))
 .catch(err => console.log(err));
 
