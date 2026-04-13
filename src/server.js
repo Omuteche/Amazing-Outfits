@@ -7,14 +7,13 @@ dotenv.config();
 
 const app = express();
 
+// CORS
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'http://127.0.0.1:3000',
     'https://amazingoutfits.shop',
-    'https://www.amazingoutfits.shop', 
-    'https://amazing-outfits-frontend.vercel.app',
-    'https://api.paystack.co'
+    'https://www.amazingoutfits.shop',
+    'https://amazing-outfits-frontend.vercel.app'
   ],
   credentials: true
 }));
@@ -33,8 +32,8 @@ app.use(express.json());
 // Connect to MongoDB
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/amazingoutfits';
 mongoose.connect(mongoUri)
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.log(err));
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.log(err));
 
 // Routes
 const authRoutes = require('./routes/auth');
